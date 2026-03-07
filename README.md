@@ -58,7 +58,7 @@ Download the script and make it executable:
 
 ```bash
 chmod +x pwcipher
-./pwcipher
+pwcipher
 ```
 On the first run, the **Initial Setup** wizard will guide you through creating your database and setting your master password.
 
