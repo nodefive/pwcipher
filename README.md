@@ -27,7 +27,7 @@ Learn more at the official [SQLCipher GitHub Page](https://github.com/sqlcipher/
 ## Screen Examples
 
 ### Searching for an Entry
-`pwcipher` displays results in a structured, perfectly aligned "Pro" format:
+`pwcipher` displays results in a structured format:
 
 ```text
  [ACCOUNT] GOOGLE ADMIN              (ID: 52)
@@ -83,7 +83,7 @@ On the first run, the **Initial Setup** wizard will guide you through creating y
 ### Handling the INFO Field
 When adding or editing the **INFO** field:
 1. Type your text.
-2. Press **Enter** for as many new lines as you need.
+2. Press **Enter** for new lines.
 3. Press **Ctrl+D** on a new line to **Save and Finish**.
 
 ### Rekeying and Decryption
