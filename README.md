@@ -80,19 +80,14 @@ On the first run, the **Initial Setup** wizard will guide you through creating y
 | `./pwcipher -r` | **Rekey, Encrypt, or Decrypt** the database. |
 | `./pwcipher -w` | **Wipe** all database entries (Dangerous!). |
 
-### Advanced: Handling the INFO Field
+### Handling the INFO Field
 When adding or editing the **INFO** field:
 1. Type your text.
 2. Press **Enter** for as many new lines as you need.
 3. Press **Ctrl+D** on a new line to **Save and Finish**.
 
-### Advanced: Rekeying and Decryption
+### Rekeying and Decryption
 Use the `-r` option to enter the Encryption Settings menu:
 - **Change Password**: Enter and confirm your new password.
 - **Encrypt**: If your DB is currently plaintext, use this to set a password.
 - **Decrypt**: Leave the new password field **blank** and type `DECRYPT` to remove all encryption.
-
----
-
-## License
-Distributed under the MIT License. See `LICENSE` for more information.
