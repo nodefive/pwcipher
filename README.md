@@ -4,13 +4,13 @@
 
 ## Key Features
 
-- 🔐 **Pro Encryption**: Powered by [SQLCipher](https://github.com/sqlcipher/sqlcipher) with 256-bit AES encryption.
-- 🎨 **Elegant CLI**: A high-end, colorized interface with perfect alignment and intuitive flow.
-- 📝 **Native Multi-line Support**: The `INFO` field supports real multi-line text—ideal for 2FA backup codes, security questions, or private notes.
-- 📂 **Flexible Configuration**: No hardcoded paths; your settings are stored in `~/.pwcipherconf`.
-- 🔍 **Smart Search**: Quickly find accounts by name or specific ID.
-- 🛠️ **Advanced Rekeying**: Seamlessly change your master password, encrypt a plaintext database, or decrypt to standard SQLite.
-- 🛡️ **Full CRUD**: Add, Edit, Delete, and List operations with professional safety confirmations.
+- **Pro Encryption**: Powered by [SQLCipher](https://github.com/sqlcipher/sqlcipher) with 256-bit AES encryption.
+- **Elegant CLI**: A high-end, colorized interface with perfect alignment and intuitive flow.
+- **Native Multi-line Support**: The `INFO` field supports real multi-line text—ideal for 2FA backup codes, security questions, or private notes.
+- **Flexible Configuration**: No hardcoded paths; your settings are stored in `~/.pwcipherconf`.
+- **Smart Search**: Quickly find accounts by name or specific ID.
+- **Advanced Rekeying**: Seamlessly change your master password, encrypt a plaintext database, or decrypt to standard SQLite.
+- **Full CRUD**: Add, Edit, Delete, and List operations with professional safety confirmations.
 
 ## Security: Why SQLCipher?
 
@@ -71,14 +71,14 @@ On the first run, the **Initial Setup** wizard will guide you through creating y
 
 | Command | Description |
 | :--- | :--- |
-| `./pwcipher --help` | Display detailed help and instructions. |
-| `./pwcipher [TERM]` | Search for an account name or a specific ID. |
-| `./pwcipher -a` | **Add** a new account entry. |
-| `./pwcipher -e [ID]` | **Edit** an existing account (leave fields blank to skip). |
-| `./pwcipher -d [ID]` | **Delete** an account entry (requires confirmation). |
-| `./pwcipher -f` | **List** the entire database contents. |
-| `./pwcipher -r` | **Rekey, Encrypt, or Decrypt** the database. |
-| `./pwcipher -w` | **Wipe** all database entries (Dangerous!). |
+| `pwcipher --help` | Display detailed help and instructions. |
+| `pwcipher [TERM]` | Search for an account name or a specific ID. |
+| `pwcipher -a` | **Add** a new account entry. |
+| `pwcipher -e [ID]` | **Edit** an existing account (leave fields blank to skip). |
+| `pwcipher -d [ID]` | **Delete** an account entry (requires confirmation). |
+| `pwcipher -f` | **List** the entire database contents. |
+| `pwcipher -r` | **Rekey, Encrypt, or Decrypt** the database. |
+| `pwcipher -w` | **Wipe** all database entries (Dangerous!). |
 
 ### Handling the INFO Field
 When adding or editing the **INFO** field:
