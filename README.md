@@ -1,16 +1,14 @@
 # pwcipher
 
-**pwcipher** is a professional, lightweight, and secure command-line password manager. It utilizes **SQLCipher** to provide transparent 256-bit AES encryption for your SQLite database, ensuring your credentials remain safe even if the database file is compromised.
+**pwcipher** is a lightweight and secure command-line password manager. It utilizes **SQLCipher** to provide transparent 256-bit AES encryption for your SQLite database, ensuring your credentials remain safe even if the database file is compromised.
 
 ## Key Features
 
 - **Pro Encryption**: Powered by [SQLCipher](https://github.com/sqlcipher/sqlcipher) with 256-bit AES encryption.
-- **Elegant CLI**: A high-end, colorized interface with perfect alignment and intuitive flow.
-- **Native Multi-line Support**: The `INFO` field supports real multi-line text—ideal for 2FA backup codes, security questions, or private notes.
-- **Flexible Configuration**: No hardcoded paths; your settings are stored in `~/.pwcipherconf`.
+- **Elegant CLI**: A high-end, colorized interface with intuitive flow.
 - **Smart Search**: Quickly find accounts by name or specific ID.
 - **Advanced Rekeying**: Seamlessly change your master password, encrypt a plaintext database, or decrypt to standard SQLite.
-- **Full CRUD**: Add, Edit, Delete, and List operations with professional safety confirmations.
+- **Full CRUD**: Add, Edit, Delete, and List operations.
 
 ## Security: Why SQLCipher?
 
@@ -24,7 +22,7 @@ Learn more at the official [SQLCipher GitHub Page](https://github.com/sqlcipher/
 
 ---
 
-## Screen Examples
+## Screen Example
 
 ### Searching for an Entry
 `pwcipher` displays results in a structured format:
@@ -36,7 +34,6 @@ Learn more at the official [SQLCipher GitHub Page](https://github.com/sqlcipher/
   PASS            : somenicepass
   URL             : https://account.google.com
   INFO            : Example of an account entry
-                    This field is reserved for additional information
                     The 2FA example codes are:
                     4829 3012
                     9012 3456
