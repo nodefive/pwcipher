@@ -18,6 +18,7 @@ RED=$'\e[0;31m'
 GREEN=$'\e[0;32m'
 YELLOW=$'\e[1;33m'
 BLUE=$'\e[0;34m'
+CYAN=$'\e[0;36m'
 BOLD=$'\e[1m'
 NC=$'\e[0m' # No Color
 
@@ -25,8 +26,11 @@ NC=$'\e[0m' # No Color
 
 # Print help message
 show_help() {
+    clear
     cat << EOF
-${BOLD}pwcipher${NC} - Secure Password Manager (SQLCipher)
+${BOLD}${BLUE}==================================================${NC}
+${BOLD}${BLUE}   pwcipher - Secure Password Manager (v2.0)      ${NC}
+${BOLD}${BLUE}==================================================${NC}
 
 ${BOLD}Usage:${NC} pwcipher [OPTION] [TERM]
 
@@ -35,16 +39,17 @@ ${BOLD}Options:${NC}
   -e [ID]       Edit an existing entry by ID.
   -d [ID]       Delete an entry by ID.
   -f            List all entries in the database.
+  -r            Rekey, Encrypt, or Decrypt the database.
   -w            ${RED}WIPE all contents from the database.${NC} (Dangerous!)
   --help        Display this detailed help message.
 
 ${BOLD}Search:${NC}
-  pwcipher [TERM]   Searches for [TERM] in account names or IDs.
+  pwcipher [TERM]   Search by account name or ID.
 
 ${BOLD}Instructions:${NC}
-  - For ${BOLD}INFO${NC} fields: Press ${YELLOW}Enter${NC} for new lines.
-  - To ${BOLD}Save/Finish${NC} the info field, press ${YELLOW}Ctrl+D${NC} on a new line.
-  - Leave fields blank during ${BOLD}Edit${NC} to keep current values.
+  - ${CYAN}INFO field${NC}: Press ${YELLOW}Enter${NC} for new lines.
+  - ${CYAN}Save Info${NC} : Press ${YELLOW}Ctrl+D${NC} on a new line.
+  - ${CYAN}Blank Fields${NC}: During Edit, leaves values unchanged.
 EOF
 }
 
@@ -65,71 +70,77 @@ check_dependency() {
 
 # Initialize database on first run
 init_db() {
-    echo -e "${BLUE}=== pwcipher Initial Setup ===${NC}"
-    echo "This will set up your encrypted database storage."
+    clear
+    echo -e "${BLUE}${BOLD}==================================================${NC}"
+    echo -e "${BLUE}${BOLD}           pwcipher Initial Setup                 ${NC}"
+    echo -e "${BLUE}${BOLD}==================================================${NC}"
+    echo " This will set up your secure database storage."
     echo
-    read -r -p "Enter the full path for your database file (e.g., $HOME/passwords.db): " db_path
+    printf "  ${CYAN}%-18s${NC} : " "Database Path"
+    read -r db_path
     
     # Expand tilde
     db_path="${db_path/#\~/$HOME}"
     
     if [ -f "$db_path" ]; then
-        echo -e "${YELLOW}Database file already exists at $db_path.${NC}"
+        echo -e "\n  ${YELLOW}Warning: File exists. Using existing file.${NC}"
     else
-        read -r -s -p "Enter a strong encryption password: " db_pass
         echo
-        read -r -s -p "Confirm encryption password: " db_pass_confirm
+        printf "  ${CYAN}%-18s${NC} : " "Master Password"
+        read -r -s db_pass
+        echo
+        printf "  ${CYAN}%-18s${NC} : " "Confirm Password"
+        read -r -s db_pass_confirm
         echo
         
         if [ "$db_pass" != "$db_pass_confirm" ]; then
-            echo -e "${RED}Passwords do not match. Aborting.${NC}"
+            echo -e "\n  ${RED}Error: Passwords do not match. Aborting.${NC}"
             exit 1
         fi
         
         # Create directory if needed
         mkdir -p "$(dirname "$db_path")"
         
-        # Initialize with schema - using -cmd to avoid 'ok' output
+        # Initialize with schema
         sqlcipher -cmd "PRAGMA key = '$db_pass';" "$db_path" "$SCHEMA" > /dev/null
         
         if [ $? -eq 0 ]; then
-            echo -e "${GREEN}Database successfully created and encrypted.${NC}"
+            echo -e "\n  ${GREEN}Success: Database initialized securely.${NC}"
         else
-            echo -e "${RED}Failed to create database.${NC}"
+            echo -e "\n  ${RED}Error: Failed to create database.${NC}"
             exit 1
         fi
     fi
     
     echo "DB_PATH=\"$db_path\"" > "$CONFIG_FILE"
     chmod 600 "$CONFIG_FILE"
+    echo -e "  ${GREEN}Config saved to $CONFIG_FILE${NC}"
+    echo
 }
 
 # Run a SQL query against the database
 run_query() {
     local query="$1"
-    # Use -batch and redirect stdout to grep -v to strictly remove any 'ok' leaks
-    sqlcipher -batch -list -noheader -cmd "PRAGMA key = '$DB_PASS';" "$DB_PATH" "$query" 2>/dev/null | grep -v '^ok$'
+    local escaped_pass="${DB_PASS//\'/\'\'}"
+    sqlcipher -batch -list -noheader -cmd "PRAGMA key = '$escaped_pass';" "$DB_PATH" "$query" 2>/dev/null | grep -v '^ok$'
 }
 
 # Format and display a single record
 display_record() {
     local row="$1"
-    # Skip rows that don't look like our data
     [[ "$row" != *"|"* ]] && return
 
     IFS='|' read -r id account login passwd url info <<< "$row"
     
-    printf "${BLUE} ACCOUNT: ${BOLD}%-25s${NC} ID: ${YELLOW}%s${NC}\n" "${account^^}" "$id"
+    printf "${BLUE}${BOLD} [%s] %-25s${NC} (ID: ${YELLOW}%s${NC})\n" "ACCOUNT" "${account^^}" "$id"
     echo -e "${BLUE} ------------------------------------------------${NC}"
-    printf "  ${BOLD}LOGIN${NC}    : %s\n" "$login"
-    printf "  ${BOLD}PASS${NC}     : %s\n" "$passwd"
-    printf "  ${BOLD}URL${NC}      : %s\n" "$url"
+    printf "  ${CYAN}%-15s${NC} : %s\n" "LOGIN" "$login"
+    printf "  ${CYAN}%-15s${NC} : %s\n" "PASS" "$passwd"
+    printf "  ${CYAN}%-15s${NC} : %s\n" "URL" "$url"
     if [ -n "$info" ]; then
-        # Format info: Replace literal \n with actual newlines and indent
-        # Use a more robust way to replace \n strings
         local formatted_info
-        formatted_info=$(echo "$info" | sed 's/\\n/\n             /g')
-        echo -e "  ${BOLD}INFO${NC}     : $formatted_info"
+        formatted_info=$(echo "$info" | sed 's/\\n/\n                  /g')
+        printf "  ${CYAN}%-15s${NC} : %s\n" "INFO" "$formatted_info"
     fi
     echo
 }
@@ -137,13 +148,42 @@ display_record() {
 # Helper to read multi-line input
 read_multiline() {
     local prompt="$1"
-    # Redirect prompt to stderr so it's not captured by $(read_multiline ...)
-    echo -e "$prompt ${YELLOW}(Press Ctrl+D to finish)${NC}:" >&2
+    printf "  ${CYAN}%-15s${NC} : ${YELLOW}(Ctrl+D to save)${NC}\n  > " "$prompt" >&2
     local content
     content=$(cat)
-    # Replace actual newlines with literal \n for storage
-    # Using perl or a more reliable sed for multi-line replacement
     echo "$content" | sed ':a;N;$!ba;s/\n/\\n/g'
+}
+
+# Execute Rekey operation (or Encrypt/Decrypt)
+execute_rekey() {
+    local old_pass="$1"
+    local new_pass="$2"
+    local escaped_old="${old_pass//\'/\'\'}"
+    local escaped_new="${new_pass//\'/\'\'}"
+    local tmp_db="${DB_PATH}.tmp"
+    
+    rm -f "$tmp_db"
+    
+    local sql_cmd=""
+    
+    if [ -z "$old_pass" ]; then
+        # ENCRYPTING a plaintext DB
+        sql_cmd="ATTACH DATABASE '$tmp_db' AS target KEY '$escaped_new'; SELECT sqlcipher_export('target'); DETACH DATABASE target;"
+    elif [ -z "$new_pass" ]; then
+        # DECRYPTING an encrypted DB
+        sql_cmd="PRAGMA key = '$escaped_old'; ATTACH DATABASE '$tmp_db' AS target KEY ''; SELECT sqlcipher_export('target'); DETACH DATABASE target;"
+    else
+        # REKEYING an encrypted DB
+        sql_cmd="PRAGMA key = '$escaped_old'; ATTACH DATABASE '$tmp_db' AS target KEY '$escaped_new'; SELECT sqlcipher_export('target'); DETACH DATABASE target;"
+    fi
+    
+    if sqlcipher -batch "$DB_PATH" "$sql_cmd" > /dev/null 2>&1; then
+        mv -f "$tmp_db" "$DB_PATH"
+        return 0
+    else
+        rm -f "$tmp_db"
+        return 1
+    fi
 }
 
 # --- Main Logic ---
@@ -163,25 +203,30 @@ if [ -z "$1" ] || [ "$1" == "--help" ]; then
 fi
 
 # Prompt for password
-read -r -s -p "Encryption Password: " DB_PASS
-echo
+printf "  ${BOLD}${BLUE}%-15s${NC} : " "Master Password"
+read -r -s DB_PASS
+echo -e "\n"
 
 # Validate password by checking if we can read the schema
 if ! run_query "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='loginfo';" | grep -q "1"; then
-    echo -e "${RED}Error: Invalid password or database is not initialized correctly.${NC}"
+    echo -e "  ${RED}Error: Invalid password or corrupted database.${NC}"
+    echo -e "  ${YELLOW}Hint: If the database is decrypted, leave it blank.${NC}\n"
     exit 1
 fi
 
 case "$1" in
     -a)
-        echo -e "${GREEN}=== Add Account Entry ===${NC}"
-        read -r -p "Account Name: " account
-        read -r -p "Login: " login
-        read -r -p "Password: " pass
-        read -r -p "URL: " url
-        info=$(read_multiline "Additional Info")
+        echo -e "${GREEN}${BOLD} --- Add New Account Entry ---${NC}"
+        printf "  ${CYAN}%-15s${NC} : " "Account Name"
+        read -r account
+        printf "  ${CYAN}%-15s${NC} : " "Login"
+        read -r login
+        printf "  ${CYAN}%-15s${NC} : " "Password"
+        read -r pass
+        printf "  ${CYAN}%-15s${NC} : " "URL"
+        read -r url
+        info=$(read_multiline "Info")
         
-        # Escape single quotes for SQL
         account="${account//\'/\'\'}"
         login="${login//\'/\'\'}"
         pass="${pass//\'/\'\'}"
@@ -189,27 +234,29 @@ case "$1" in
         info="${info//\'/\'\'}"
 
         run_query "INSERT INTO loginfo (account, login, passwd, url, info) VALUES ('$account', '$login', '$pass', '$url', '$info');"
-        echo -e "${GREEN}Account added successfully.${NC}"
+        echo -e "\n  ${GREEN}Success: Account created successfully.${NC}\n"
         ;;
     -e)
         id="$2"
-        [ -z "$id" ] && read -r -p "Enter Account ID to edit: " id
+        [ -z "$id" ] && { printf "  ${CYAN}%-15s${NC} : " "Enter Entry ID"; read -r id; }
         
         record=$(run_query "SELECT * FROM loginfo WHERE id = $id;")
         if [ -z "$record" ]; then
-            echo -e "${RED}Record with ID $id not found.${NC}"
+            echo -e "  ${RED}Error: Entry ID $id not found.${NC}\n"
             exit 1
         fi
         
         display_record "$record"
-        echo -e "${YELLOW}Enter new values (leave blank to keep current):${NC}"
-        read -r -p "New Account Name: " n_account
-        read -r -p "New Login: " n_login
-        read -r -p "New Password: " n_pass
-        read -r -p "New URL: " n_url
-        
-        echo -e "New Info ${YELLOW}(Press Ctrl+D to finish or Leave Empty to skip)${NC}:"
-        n_info=$(cat)
+        echo -e "${YELLOW} Update fields (leave blank to skip):${NC}"
+        printf "  ${CYAN}%-15s${NC} : " "New Account"
+        read -r n_account
+        printf "  ${CYAN}%-15s${NC} : " "New Login"
+        read -r n_login
+        printf "  ${CYAN}%-15s${NC} : " "New Password"
+        read -r n_pass
+        printf "  ${CYAN}%-15s${NC} : " "New URL"
+        read -r n_url
+        n_info=$(read_multiline "New Info")
         
         [ -n "$n_account" ] && run_query "UPDATE loginfo SET account = '${n_account//\'/\'\'}' WHERE id = $id;"
         [ -n "$n_login" ]   && run_query "UPDATE loginfo SET login = '${n_login//\'/\'\'}' WHERE id = $id;"
@@ -221,66 +268,101 @@ case "$1" in
             run_query "UPDATE loginfo SET info = '${n_info_esc//\'/\'\'}' WHERE id = $id;"
         fi
         
-        echo -e "${GREEN}Record updated successfully.${NC}"
-        # Display the updated record
+        echo -e "\n  ${GREEN}Success: Record updated.${NC}"
         updated_record=$(run_query "SELECT * FROM loginfo WHERE id = $id;")
         display_record "$updated_record"
         ;;
     -d)
         id="$2"
-        [ -z "$id" ] && read -r -p "Enter Account ID to delete: " id
+        [ -z "$id" ] && { printf "  ${CYAN}%-15s${NC} : " "Enter Entry ID"; read -r id; }
         
         record=$(run_query "SELECT * FROM loginfo WHERE id = $id;")
         if [ -z "$record" ]; then
-            echo -e "${RED}Record with ID $id not found.${NC}"
+            echo -e "  ${RED}Error: Entry ID $id not found.${NC}\n"
             exit 1
         fi
         
         display_record "$record"
-        read -r -p "Are you sure you want to delete this entry? (yes/no): " confirm
+        printf "  ${YELLOW}%-15s${NC} (yes/no) : " "Delete Entry?"
+        read -r confirm
         if [ "$confirm" == "yes" ]; then
             run_query "DELETE FROM loginfo WHERE id = $id;"
-            echo -e "${GREEN}Record deleted.${NC}"
+            echo -e "  ${GREEN}Success: Account deleted.${NC}\n"
         else
-            echo "Deletion cancelled."
+            echo -e "  Action cancelled.\n"
         fi
         ;;
     -f)
-        echo -e "${BLUE}=== Full Account List ===${NC}"
+        echo -e "${BLUE}${BOLD} --- Entire Database List ---${NC}\n"
         results=$(run_query "SELECT * FROM loginfo ORDER BY account ASC;")
         if [ -z "$results" ]; then
-            echo "Database is empty."
+            echo -e "  Database is empty.\n"
         else
             while IFS= read -r line; do
                 display_record "$line"
             done <<< "$results"
         fi
         ;;
+    -r)
+        echo -e "${YELLOW}${BOLD} --- Database Encryption Settings ---${NC}"
+        echo -e " Use this menu to change your password or toggle encryption.\n"
+        
+        printf "  ${CYAN}%-18s${NC} : " "New Password"
+        read -r -s new_pass
+        echo
+        printf "  ${CYAN}%-18s${NC} : " "Confirm Password"
+        read -r -s new_pass_confirm
+        echo
+        
+        if [ "$new_pass" != "$new_pass_confirm" ]; then
+            echo -e "\n  ${RED}Error: Passwords do not match.${NC}\n"
+            exit 1
+        fi
+        
+        if [ -z "$new_pass" ]; then
+             echo -e "\n  ${RED}${BOLD}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}"
+             echo -e "  ${RED}${BOLD}   WARNING: DECRYPTING DATABASE TO PLAINTEXT!      ${NC}"
+             echo -e "  ${RED}${BOLD}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}\n"
+             printf "  ${CYAN}%-18s${NC} : " "Type 'DECRYPT'"
+             read -r confirm
+             if [ "$confirm" != "DECRYPT" ]; then
+                 echo -e "\n  Action cancelled.\n"
+                 exit 1
+             fi
+        fi
+        
+        echo -e "\n  ${CYAN}------------------------------------------------${NC}"
+        echo -e "  ${CYAN}Processing database operation...${NC}"
+        if execute_rekey "$DB_PASS" "$new_pass"; then
+            echo -e "  ${GREEN}Success: Encryption state updated.${NC}\n"
+        else
+            echo -e "  ${RED}Error: Operation failed.${NC}\n"
+        fi
+        ;;
     -w)
-        echo -e "${RED}${BOLD}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}"
-        echo -e "${RED}${BOLD}WARNING: YOU ARE ABOUT TO WIPE ALL DATABASE CONTENT!${NC}"
-        echo -e "${RED}${BOLD}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}"
-        read -r -p "Type 'WIPE' to confirm: " confirm
+        echo -e "${RED}${BOLD} !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}"
+        echo -e "${RED}${BOLD}   DANGER: WIPE ALL DATABASE ENTRIES!              ${NC}"
+        echo -e "${RED}${BOLD} !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}\n"
+        printf "  ${CYAN}%-18s${NC} : " "Type 'WIPE'"
+        read -r confirm
         if [ "$confirm" == "WIPE" ]; then
             run_query "DELETE FROM loginfo;"
-            echo -e "${GREEN}All records have been wiped.${NC}"
+            echo -e "\n  ${GREEN}Success: All records wiped.${NC}\n"
         else
-            echo "Wipe operation cancelled."
+            echo -e "\n  Wipe cancelled.\n"
         fi
         ;;
     -*)
-        echo -e "${RED}Unknown option: $1${NC}"
+        echo -e "  ${RED}Unknown option: $1${NC}"
         show_help
         exit 1
         ;;
     *)
-        # Search functionality
         term="$1"
-        # Escape single quotes for search term
         term_esc="${term//\'/\'\'}"
         results=$(run_query "SELECT * FROM loginfo WHERE account LIKE '%$term_esc%' OR id = '$term_esc';")
         if [ -z "$results" ]; then
-            echo -e "${YELLOW}No matches found for '$term'.${NC}"
+            echo -e "  ${YELLOW}No matches found for '$term'.${NC}\n"
         else
             while IFS= read -r line; do
                 display_record "$line"
