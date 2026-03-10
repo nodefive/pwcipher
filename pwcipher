@@ -92,7 +92,7 @@ init_db() {
         printf "  ${CYAN}%-18s${NC} : " "Confirm Password"
         read -r -s db_pass_confirm
         echo
-        
+   
         if [ "$db_pass" != "$db_pass_confirm" ]; then
             echo -e "\n  ${RED}Error: Passwords do not match. Aborting.${NC}"
             exit 1
@@ -102,7 +102,8 @@ init_db() {
         mkdir -p "$(dirname "$db_path")"
         
         # Initialize with schema
-        sqlcipher -cmd "PRAGMA key = '$db_pass';" "$db_path" "$SCHEMA" > /dev/null
+        escaped_pass="${db_pass//\'/\'\'}"
+        sqlcipher -cmd "PRAGMA key = '$escaped_pass';" "$db_path" "$SCHEMA" > /dev/null
         
         if [ $? -eq 0 ]; then
             echo -e "\n  ${GREEN}Success: Database initialized securely.${NC}"
@@ -151,6 +152,7 @@ read_multiline() {
     printf "  ${CYAN}%-15s${NC} : ${YELLOW}(Ctrl+D to save)${NC}\n  > " "$prompt" >&2
     local content
     content=$(cat)
+  
     echo "$content" | sed ':a;N;$!ba;s/\n/\\n/g'
 }
 
@@ -196,6 +198,14 @@ fi
 
 # shellcheck source=/dev/null
 source "$CONFIG_FILE"
+
+# Logic Fix: If config exists but DB file is missing, reset config and redo setup
+if [ ! -f "$DB_PATH" ]; then
+    echo -e "  ${YELLOW}Database file missing at $DB_PATH. Resetting setup...${NC}"
+    rm -f "$CONFIG_FILE"
+    init_db
+    source "$CONFIG_FILE"
+fi
 
 if [ -z "$1" ] || [ "$1" == "--help" ]; then
     show_help
@@ -262,7 +272,6 @@ case "$1" in
         [ -n "$n_login" ]   && run_query "UPDATE loginfo SET login = '${n_login//\'/\'\'}' WHERE id = $id;"
         [ -n "$n_pass" ]    && run_query "UPDATE loginfo SET passwd = '${n_pass//\'/\'\'}' WHERE id = $id;"
         [ -n "$n_url" ]     && run_query "UPDATE loginfo SET url = '${n_url//\'/\'\'}' WHERE id = $id;"
-        
         if [ -n "$n_info" ]; then
             n_info_esc=$(echo "$n_info" | sed ':a;N;$!ba;s/\n/\\n/g')
             run_query "UPDATE loginfo SET info = '${n_info_esc//\'/\'\'}' WHERE id = $id;"
@@ -325,6 +334,7 @@ case "$1" in
              echo -e "  ${RED}${BOLD}!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!${NC}\n"
              printf "  ${CYAN}%-18s${NC} : " "Type 'DECRYPT'"
              read -r confirm
+ 
              if [ "$confirm" != "DECRYPT" ]; then
                  echo -e "\n  Action cancelled.\n"
                  exit 1
@@ -333,6 +343,7 @@ case "$1" in
         
         echo -e "\n  ${CYAN}------------------------------------------------${NC}"
         echo -e "  ${CYAN}Processing database operation...${NC}"
+     
         if execute_rekey "$DB_PASS" "$new_pass"; then
             echo -e "  ${GREEN}Success: Encryption state updated.${NC}\n"
         else
